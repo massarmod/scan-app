@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>سكان الباركود</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', Tahoma, Arial, sans-serif; background: #0f172a; color: #fff; min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 16px; }
+  h1 { font-size: 20px; margin-bottom: 4px; color: #f8fafc; }
+  .subtitle { font-size: 12px; color: #94a3b8; margin-bottom: 14px; }
+
+  /* SCREENS */
+  .screen { width: 100%; max-width: 400px; display: none; flex-direction: column; align-items: center; }
+  .screen.active { display: flex; }
+
+  /* HOME */
+  .session-list { width: 100%; margin-top: 10px; }
+  .session-card { background: #1e293b; border-radius: 12px; padding: 14px 16px; margin-bottom: 10px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; border: 1px solid #334155; }
+  .session-card:hover { border-color: #3b82f6; }
+  .session-name { font-weight: 700; font-size: 15px; color: #93c5fd; }
+  .session-meta { font-size: 12px; color: #64748b; margin-top: 3px; }
+  .session-count { font-size: 22px; font-weight: 800; color: #3b82f6; }
+  .btn-new { width: 100%; background: #3b82f6; color: #fff; border: none; border-radius: 12px; padding: 14px; font-size: 16px; font-weight: 700; cursor: pointer; margin-bottom: 16px; }
+  .btn-new:hover { background: #2563eb; }
+
+  /* SCAN */
+  #reader { width: 100%; max-width: 360px; border-radius: 16px; overflow: hidden; border: 3px solid #3b82f6; }
+  .controls { display: flex; gap: 10px; margin-top: 10px; width: 100%; max-width: 360px; }
+  .btn-flash { flex: 1; background: #1e293b; color: #fbbf24; border: 1px solid #fbbf24; border-radius: 10px; padding: 10px; font-size: 14px; cursor: pointer; font-weight: 600; }
+  .btn-flash.on { background: #fbbf24; color: #000; }
+  .btn-end { flex: 1; background: #1e293b; color: #f87171; border: 1px solid #f87171; border-radius: 10px; padding: 10px; font-size: 14px; cursor: pointer; font-weight: 600; }
+  .status { margin-top: 10px; font-size: 15px; padding: 12px 20px; border-radius: 12px; text-align: center; width: 100%; max-width: 360px; font-weight: 600; transition: all 0.3s; }
+  .status.waiting { background: #1e293b; color: #94a3b8; }
+  .status.saving { background: #1d4ed8; color: #fff; }
+  .status.success { background: #15803d; color: #fff; }
+  .status.error { background: #b91c1c; color: #fff; }
+  .status.duplicate { background: #92400e; color: #fff; }
+  .last-scan { margin-top: 8px; font-size: 12px; color: #64748b; text-align: center; direction: ltr; }
+  .counter { margin-top: 12px; font-size: 28px; font-weight: 800; color: #3b82f6; }
+  .counter-label { font-size: 12px; color: #64748b; margin-top: 2px; }
+  .log { margin-top: 12px; width: 100%; max-width: 360px; max-height: 180px; overflow-y: auto; }
+  .log-item { border-radius: 8px; padding: 8px 12px; margin-bottom: 5px; font-size: 12px; direction: ltr; display: flex; justify-content: space-between; align-items: center; }
+  .log-item.normal { background: #1e293b; }
+  .log-item.dup { background: #451a03; border: 1px solid #92400e; }
+  .log-item .barcode { color: #93c5fd; font-weight: 600; }
+  .log-item.dup .barcode { color: #fbbf24; }
+  .log-item .time { color: #475569; font-size: 11px; }
+
+  /* SUMMARY */
+  .summary-box { background: #1e293b; border-radius: 14px; padding: 20px; width: 100%; margin-bottom: 14px; text-align: center; }
+  .summary-title { font-size: 18px; font-weight: 800; color: #93c5fd; margin-bottom: 6px; }
+  .summary-count { font-size: 40px; font-weight: 900; color: #3b82f6; }
+  .summary-sub { font-size: 13px; color: #64748b; margin-top: 4px; }
+  .btn-back { width: 100%; background: #1e293b; color: #94a3b8; border: 1px solid #334155; border-radius: 12px; padding: 12px; font-size: 14px; cursor: pointer; margin-bottom: 10px; }
+  .detail-log { width: 100%; max-height: 300px; overflow-y: auto; }
+
+  /* NAME MODAL */
+  .modal-overlay { position: fixed; top:0; left:0; right:0; bottom:0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 999; }
+  .modal { background: #1e293b; border-radius: 16px; padding: 24px; width: 90%; max-width: 340px; }
+  .modal h3 { font-size: 17px; margin-bottom: 14px; color: #f8fafc; text-align: center; }
+  .modal input { width: 100%; background: #0f172a; border: 1px solid #334155; border-radius: 10px; padding: 12px; font-size: 15px; color: #fff; margin-bottom: 14px; text-align: center; }
+  .modal-btns { display: flex; gap: 10px; }
+  .modal-btns button { flex: 1; padding: 12px; border-radius: 10px; font-size: 14px; font-weight: 700; cursor: pointer; border: none; }
+  .btn-confirm { background: #3b82f6; color: #fff; }
+  .btn-cancel-modal { background: #334155; color: #94a3b8; }
+</style>
+</head>
+<body>
+<h1>📦 سكان الباركود</h1>
+<p class="subtitle">سكان متواصل — يحفظ تلقائياً في Sheets</p>
+
+<!-- HOME SCREEN -->
+<div class="screen active" id="homeScreen">
+  <button class="btn-new" onclick="showNameModal()">➕ جلسة جديدة</button>
+  <div style="font-size:13px;color:#64748b;margin-bottom:10px;align-self:flex-start;">الجلسات السابقة</div>
+  <div class="session-list" id="sessionList"></div>
+</div>
+
+<!-- SCAN SCREEN -->
+<div class="screen" id="scanScreen">
+  <div style="font-size:14px;color:#93c5fd;font-weight:700;margin-bottom:10px;" id="sessionTitle"></div>
+  <div id="reader"></div>
+  <div class="controls">
+    <button class="btn-flash" id="flashBtn" onclick="toggleFlash()">🔦 الفلاش</button>
+    <button class="btn-end" onclick="endSession()">⏹️ إنهاء الجلسة</button>
+  </div>
+  <div class="status waiting" id="status">جاري تشغيل الكاميرا...</div>
+  <div class="last-scan" id="lastScan"></div>
+  <div class="counter" id="counter">0</div>
+  <div class="counter-label">سكان في هذه الجلسة</div>
+  <div class="log" id="log"></div>
+</div>
+
+<!-- SUMMARY SCREEN -->
+<div class="screen" id="summaryScreen">
+  <div class="summary-box">
+    <div class="summary-title" id="summaryTitle"></div>
+    <div class="summary-count" id="summaryCount"></div>
+    <div class="summary-sub" id="summaryDate"></div>
+  </div>
+  <button class="btn-back" onclick="showHome()">← الرجوع للرئيسية</button>
+  <div style="font-size:13px;color:#64748b;margin-bottom:8px;align-self:flex-start;">تفاصيل السكان</div>
+  <div class="detail-log" id="detailLog"></div>
+</div>
+
+<!-- NAME MODAL -->
+<div class="modal-overlay" id="nameModal" style="display:none;">
+  <div class="modal">
+    <h3>اسم الجلسة</h3>
+    <input type="text" id="sessionNameInput" placeholder="مثال: جلسة الصباح" />
+    <div class="modal-btns">
+      <button class="btn-cancel-modal" onclick="hideNameModal()">إلغاء</button>
+      <button class="btn-confirm" onclick="startSession()">ابدأ السكان</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const SHEETS_URL = 'https://script.google.com/macros/s/AKfycbw-LaI4lmiOoXznovIiZRXbdRrA4Z6rFtXB3kFSp4kd4Q5uc0pzeaDrxMtdzNAE2oVrnQ/exec';
+
+let sessions = JSON.parse(localStorage.getItem('scan_sessions') || '[]');
+let currentSession = null;
+let processing = false;
+let flashOn = false;
+let html5QrCode = null;
+
+// Beep
+const AudioCtx = window.AudioContext || window.webkitAudioContext;
+function beep(type) {
+  try {
+    const ctx = new AudioCtx();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    if (type === 'success') {
+      osc.frequency.setValueAtTime(880, ctx.currentTime);
+      osc.frequency.setValueAtTime(1100, ctx.currentTime + 0.1);
+      gain.gain.setValueAtTime(0.3, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
+      osc.start(); osc.stop(ctx.currentTime + 0.25);
+    } else {
+      osc.frequency.setValueAtTime(280, ctx.currentTime);
+      gain.gain.setValueAtTime(0.4, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+      osc.start(); osc.stop(ctx.currentTime + 0.4);
+    }
+  } catch(e) {}
+}
+
+function saveSessions() { localStorage.setItem('scan_sessions', JSON.stringify(sessions)); }
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function showHome() {
+  showScreen('homeScreen');
+  renderSessions();
+}
+
+function renderSessions() {
+  const el = document.getElementById('sessionList');
+  if (!sessions.length) { el.innerHTML = '<div style="color:#475569;font-size:13px;text-align:center;">لا توجد جلسات بعد</div>'; return; }
+  el.innerHTML = [...sessions].reverse().map((s, i) => `
+    <div class="session-card" onclick="viewSession(${sessions.length - 1 - i})">
+      <div>
+        <div class="session-name">${s.name}</div>
+        <div class="session-meta">${s.date}</div>
+      </div>
+      <div class="session-count">${s.items.length}</div>
+    </div>
+  `).join('');
+}
+
+function showNameModal() {
+  document.getElementById('sessionNameInput').value = 'جلسة ' + (sessions.length + 1);
+  document.getElementById('nameModal').style.display = 'flex';
+  setTimeout(() => document.getElementById('sessionNameInput').select(), 100);
+}
+function hideNameModal() { document.getElementById('nameModal').style.display = 'none'; }
+
+function startSession() {
+  const name = document.getElementById('sessionNameInput').value.trim() || ('جلسة ' + (sessions.length + 1));
+  hideNameModal();
+  const now = new Date();
+  currentSession = {
+    name,
+    date: now.toLocaleDateString('ar-SA') + ' ' + now.toLocaleTimeString('ar-SA', {hour:'2-digit', minute:'2-digit'}),
+    items: [],
+    scanned: new Set()
+  };
+  document.getElementById('sessionTitle').textContent = '📋 ' + name;
+  document.getElementById('counter').textContent = '0';
+  document.getElementById('log').innerHTML = '';
+  document.getElementById('lastScan').textContent = '';
+  showScreen('scanScreen');
+  startCamera();
+}
+
+function startCamera() {
+  html5QrCode = new Html5Qrcode("reader");
+  const config = { fps: 15, qrbox: { width: 260, height: 260 }, aspectRatio: 1.0 };
+  html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess)
+    .then(() => setStatus('waiting', 'جاهز للسكان 📷'))
+    .catch(() => setStatus('error', 'تعذر فتح الكاميرا'));
+}
+
+async function endSession() {
+  if (html5QrCode) {
+    try { await html5QrCode.stop(); } catch(e) {}
+    html5QrCode = null;
+  }
+  if (currentSession && currentSession.items.length > 0) {
+    sessions.push({ name: currentSession.name, date: currentSession.date, items: currentSession.items });
+    saveSessions();
+  }
+  viewSession(sessions.length - 1);
+}
+
+function viewSession(idx) {
+  const s = sessions[idx];
+  if (!s) { showHome(); return; }
+  document.getElementById('summaryTitle').textContent = s.name;
+  document.getElementById('summaryCount').textContent = s.items.length;
+  document.getElementById('summaryDate').textContent = s.date;
+  document.getElementById('detailLog').innerHTML = s.items.map(item => `
+    <div class="log-item normal">
+      <span class="barcode">${item.barcode}</span>
+      <span class="time">${item.time}</span>
+    </div>
+  `).join('');
+  showScreen('summaryScreen');
+}
+
+async function onScanSuccess(barcode) {
+  if (processing) return;
+  processing = true;
+  if (navigator.vibrate) navigator.vibrate(80);
+  document.getElementById('lastScan').textContent = barcode;
+
+  if (currentSession.scanned.has(barcode)) {
+    beep('duplicate');
+    setStatus('duplicate', '⚠️ مكرر! سبق سكانه في هذه الجلسة');
+    setTimeout(() => { setStatus('waiting', 'جاهز للسكان 📷'); processing = false; }, 2000);
+    return;
+  }
+
+  setStatus('saving', 'جاري الحفظ...');
+  try {
+    await fetch(SHEETS_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ barcode, qty: 1 }) });
+    currentSession.scanned.add(barcode);
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    currentSession.items.unshift({ barcode, time: timeStr });
+    document.getElementById('counter').textContent = currentSession.items.length;
+    renderCurrentLog();
+    beep('success');
+    setStatus('success', '✅ تم الحفظ!');
+    setTimeout(() => { setStatus('waiting', 'جاهز للسكان التالي 📷'); processing = false; }, 800);
+  } catch(e) {
+    setStatus('error', '❌ فشل الحفظ');
+    setTimeout(() => { setStatus('waiting', 'جاهز للسكان 📷'); processing = false; }, 2000);
+  }
+}
+
+function renderCurrentLog() {
+  document.getElementById('log').innerHTML = currentSession.items.map(item => `
+    <div class="log-item normal">
+      <span class="barcode">${item.barcode}</span>
+      <span class="time">${item.time}</span>
+    </div>
+  `).join('');
+}
+
+async function toggleFlash() {
+  try {
+    const track = html5QrCode?._localMediaStream?.getVideoTracks()[0];
+    if (!track) return;
+    flashOn = !flashOn;
+    await track.applyConstraints({ advanced: [{ torch: flashOn }] });
+    const btn = document.getElementById('flashBtn');
+    btn.textContent = flashOn ? '🔦 فلاش شغال' : '🔦 الفلاش';
+    btn.classList.toggle('on', flashOn);
+  } catch(e) { alert('الفلاش غير متاح على هذا الجهاز'); }
+}
+
+function setStatus(type, msg) {
+  const el = document.getElementById('status');
+  el.className = 'status ' + type;
+  el.textContent = msg;
+}
+
+// Init
+showHome();
+</script>
+</body>
+</html>
